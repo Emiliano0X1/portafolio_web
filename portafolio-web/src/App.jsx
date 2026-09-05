@@ -1,17 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { portfolioData } from './data/portfolioData';
 import { ToolIcon, SocialIcon, MailIcon, PhoneIcon } from './components/Icons';
-import { ProjectCard } from './components/ProjectCard';
 import { DockNavigation } from './components/DockNavigation';
 import { CinematicBackground } from './components/CinematicBackground';
+import { HeroPhotoCarousel } from './components/HeroPhotoCarousel';
+import { VinylPlayerSection } from './components/VinylPlayer/VinylPlayerSection';
+import { SmartBussingPage } from './components/Projects/SmartBussingPage';
 import './App.css';
 
 /**
  * Main Portfolio Application
- * Implements pixel-perfect Framer UI recreation for Emiliano Gonzalez Perez.
+ * Redesigned with the Vinylist Music Player aesthetic for Emiliano Gonzalez Perez.
  */
 function App() {
-  const [activeTab, setActiveTab] = useState('summary');
+  const [activeTab, setActiveTab] = useState('home');
+  const [currentView, setCurrentView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash.includes('project/smart-bussing') || hash === '#smart-bussing') {
+        return { type: 'project', id: 'smart-bussing' };
+      }
+    }
+    return { type: 'main' };
+  });
+
   const sectionRefs = {
     home: useRef(null),
     summary: useRef(null),
@@ -20,8 +32,50 @@ function App() {
     links: useRef(null),
   };
 
+  // Sync hash changes (e.g. back/forward button)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.includes('project/smart-bussing') || hash === '#smart-bussing') {
+        setCurrentView({ type: 'project', id: 'smart-bussing' });
+      } else {
+        setCurrentView({ type: 'main' });
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Navigate to project handler
+  const handleNavigateToProject = (projectId) => {
+    if (projectId === 'smart-bussing') {
+      setCurrentView({ type: 'project', id: 'smart-bussing' });
+      window.location.hash = '#project/smart-bussing';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Return to discography
+  const handleBackToDiscography = () => {
+    setCurrentView({ type: 'main' });
+    window.location.hash = '#experience';
+    setTimeout(() => {
+      sectionRefs.experience?.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+  };
+
   // Smooth scroll handler when clicking navigation dock items
   const handleTabClick = (tabId) => {
+    if (currentView.type !== 'main') {
+      setCurrentView({ type: 'main' });
+      window.location.hash = `#${tabId}`;
+      setTimeout(() => {
+        sectionRefs[tabId]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+      return;
+    }
+
     setActiveTab(tabId);
     const element = sectionRefs[tabId]?.current;
     if (element) {
@@ -33,7 +87,7 @@ function App() {
   useEffect(() => {
     const observerOptions = {
       root: null,
-      rootMargin: '-25% 0px -35% 0px',
+      rootMargin: '-20% 0px -30% 0px',
       threshold: 0.1,
     };
 
@@ -56,48 +110,81 @@ function App() {
     return () => observer.disconnect();
   }, []);
 
+  // If viewing a dedicated project page, render that project's bespoke component
+  if (currentView.type === 'project' && currentView.id === 'smart-bussing') {
+    const smartBussingData = portfolioData.albums.projects.tracks.find(
+      (t) => t.id === 'smart-bussing'
+    );
+    return (
+      <SmartBussingPage
+        onBackToDiscography={handleBackToDiscography}
+        projectData={smartBussingData}
+      />
+    );
+  }
+
   return (
     <div className="portfolio-app-root">
-      {/* Ambient background with warm amber rim lighting & portrait integration */}
+      {/* Ambient background with warm amber rim lighting */}
       <CinematicBackground activeTab={activeTab} />
 
-      {/* Top right action: Download CV button */}
+      {/* Top Header with Vinyl Brand & Actions */}
       <header className="portfolio-top-header">
-        <a
-          href={portfolioData.personal.cvLink}
-          className="download-cv-btn"
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Download Curriculum Vitae"
-        >
-          Download CV
-        </a>
+        <div className="top-header-brand" onClick={() => handleTabClick('home')}>
+          <div className="top-brand-badge">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
+              <circle cx="12" cy="12" r="3" fill="currentColor" />
+            </svg>
+            <span className="brand-text">Emiliano.vinyl</span>
+          </div>
+        </div>
+
+        <div className="top-header-actions">
+          <a
+            href={portfolioData.personal.cvLink}
+            className="download-cv-btn"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Download Curriculum Vitae"
+          >
+            Download CV
+          </a>
+        </div>
       </header>
 
       {/* Main Content Sections */}
       <main className="portfolio-main-content">
+        
         {/* HOME / HERO SECTION */}
         <section id="home" ref={sectionRefs.home} className="portfolio-section hero-section">
-          <div className="hero-content">
-            <div className="hero-badge">SOFTWARE ENGINEER • CETYS</div>
-            <h1 className="hero-title">{portfolioData.personal.name}</h1>
-            <p className="hero-role">{portfolioData.personal.headline}</p>
-            <p className="hero-subrole">{portfolioData.personal.subheadline}</p>
-            <div className="hero-quick-actions">
-              <button
-                type="button"
-                className="btn-primary-yellow"
-                onClick={() => handleTabClick('summary')}
-              >
-                Explore Profile
-              </button>
-              <button
-                type="button"
-                className="btn-outline-glass"
-                onClick={() => handleTabClick('experience')}
-              >
-                View Experience
-              </button>
+          <div className="hero-grid-layout">
+            <div className="hero-content">
+              <div className="hero-badge">SOFTWARE ENGINEER • CETYS</div>
+              <h1 className="hero-title">{portfolioData.personal.name}</h1>
+              <p className="hero-role">{portfolioData.personal.headline}</p>
+              <p className="hero-subrole">{portfolioData.personal.subheadline}</p>
+              <div className="hero-quick-actions">
+                <button
+                  type="button"
+                  className="btn-primary-yellow"
+                  onClick={() => handleTabClick('experience')}
+                >
+                  Explore Vinyl Discography
+                </button>
+                <button
+                  type="button"
+                  className="btn-outline-glass"
+                  onClick={() => handleTabClick('summary')}
+                >
+                  About Emiliano
+                </button>
+              </div>
+            </div>
+
+            {/* Dynamic Auto-cycling Multi-Photo Carousel */}
+            <div className="hero-carousel-column">
+              <HeroPhotoCarousel gallery={portfolioData.personal.homeGallery} />
             </div>
           </div>
         </section>
@@ -119,67 +206,24 @@ function App() {
               <div className="summary-highlight-quote">
                 <div className="quote-yellow-bar" />
                 <blockquote className="quote-text">
-                  {portfolioData.summary.quote}
+                  "{portfolioData.summary.quote}"
                 </blockquote>
               </div>
             )}
           </div>
         </section>
 
-        {/* WORK EXPERIENCE SECTION */}
-        <section id="experience" ref={sectionRefs.experience} className="portfolio-section experience-section">
-          <div className="section-inner">
-            <h2 className="section-title">{portfolioData.experience.title}</h2>
-
-            {/* List of Positions */}
-            <div className="experience-jobs-container">
-              {portfolioData.experience.jobs.map((job) => (
-                <div key={job.id} className="job-entry-card">
-                  <div className="job-header">
-                    <div className="job-role-wrapper">
-                      <span className="yellow-dot">•</span>
-                      <span className="job-role">{job.role}</span>
-                    </div>
-                    <span className="job-period">{job.period}</span>
-                  </div>
-
-                  <div className="job-company-row">
-                    <span className="job-company">{job.company}</span>
-                    <span className="job-location">• {job.location}</span>
-                  </div>
-
-                  <p className="job-description">{job.description}</p>
-
-                  <ul className="job-bullets-list">
-                    {job.bullets.map((bullet, bIdx) => (
-                      <li key={bIdx} className="job-bullet-item">
-                        <span className="bullet-em-dash">—</span>
-                        <span className="bullet-text">{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-
-            {/* Selected Projects */}
-            <div className="selected-projects-wrapper">
-              <h3 className="sub-section-title">{portfolioData.experience.selectedProjectsTitle}</h3>
-              <div className="projects-grid">
-                {portfolioData.experience.projects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* VINYL EXPERIENCE SECTION (Albums: Experience, Projects, Awards) */}
+        <div ref={sectionRefs.experience}>
+          <VinylPlayerSection onNavigateToProject={handleNavigateToProject} />
+        </div>
 
         {/* SKILLS & TOOLS SECTION */}
         <section id="skills" ref={sectionRefs.skills} className="portfolio-section skills-section">
           <div className="section-inner">
             <h2 className="section-title">{portfolioData.skills.title}</h2>
 
-            {/* Two Columns of Core Competencies with Yellow Bullets */}
+            {/* Two Columns of Core Competencies */}
             <div className="skills-columns-wrapper">
               {portfolioData.skills.skillsColumns.map((col, colIdx) => (
                 <ul key={colIdx} className="skills-column">
